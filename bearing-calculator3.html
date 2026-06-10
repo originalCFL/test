@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方位俯仰計算器</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070d0f;
+    --surface: #0d1a1e;
+    --panel: #0f2028;
+    --border: #1a3a4a;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --text: #c8e8f0;
+    --text-dim: #4a7a8a;
+    --glow: 0 0 20px rgba(0,229,255,0.3);
+    --glow-green: 0 0 20px rgba(57,255,20,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  header p {
+    margin-top: 8px;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .scan-line {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    margin: 16px auto;
+    animation: scan 3s ease-in-out infinite;
+  }
+  @keyframes scan {
+    0%,100% { opacity: 0.3; transform: scaleX(0.3); }
+    50% { opacity: 1; transform: scaleX(1); }
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.6;
+  }
+
+  .panel.point-b::before {
+    background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+  }
+
+  .panel-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-label .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  .point-b .panel-label .dot {
+    background: var(--accent2);
+    box-shadow: 0 0 8px var(--accent2);
+    animation-delay: 0.75s;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .field-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  label {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  input[type="number"], input[type="text"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    padding: 10px 12px;
+    border-radius: 3px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    -moz-appearance: textfield;
+  }
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(0,229,255,0.2);
+  }
+  .point-b input:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 12px rgba(255,107,53,0.2);
+  }
+  .point-b input { color: var(--accent2); }
+
+  /* Coord input wrapper */
+  .coord-wrap { position: relative; }
+  .coord-wrap input { padding-right: 36px; }
+
+  .coord-status {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .coord-status.ok  { color: var(--accent3); }
+  .coord-status.err { color: #ff4444; }
+  .coord-status.idle { color: var(--text-dim); }
+
+  .coord-hint {
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    margin-top: 5px;
+    letter-spacing: 0.05em;
+    min-height: 14px;
+    transition: color 0.2s;
+  }
+  .coord-hint.ok  { color: var(--accent3); }
+  .coord-hint.err { color: #ff5555; }
+
+  /* Alt fetch state */
+  .alt-wrap { position: relative; }
+  .alt-wrap input { padding-right: 32px; }
+  .alt-spin {
+    position: absolute;
+    right: 8px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    pointer-events: none;
+    display: none;
+  }
+  .alt-spin.loading { display: block; animation: spin 1s linear infinite; }
+  .alt-spin.done    { display: block; color: var(--accent3); animation: none; }
+  @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+  .field-full { grid-column: 1 / -1; }
+
+  .btn-calc {
+    display: block;
+    width: 100%;
+    margin-top: 24px;
+    padding: 16px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-calc::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 0;
+  }
+  .btn-calc:hover::before { transform: translateX(0); }
+  .btn-calc:hover { color: var(--bg); box-shadow: var(--glow); }
+  .btn-calc span { position: relative; z-index: 1; }
+
+  /* Results */
+  .results {
+    display: none;
+    gap: 20px;
+    margin-top: 20px;
+    animation: fadeIn 0.4s ease;
+  }
+  .results.show { display: grid; grid-template-columns: 1fr 1fr; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+
+  .result-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .result-panel::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent3), transparent);
+    opacity: 0.5;
+  }
+
+  .result-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .result-row {
+    margin-bottom: 18px;
+  }
+
+  .result-key {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .result-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent3);
+    text-shadow: var(--glow-green);
+    line-height: 1;
+  }
+
+  .result-val .unit {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-dim);
+    margin-left: 4px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .result-sub {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* Compass visual */
+  .compass-wrap {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 24px;
+  }
+
+  .compass-box {
+    text-align: center;
+  }
+
+  .compass-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  svg.compass {
+    display: block;
+    margin: 0 auto;
+  }
+
+  .divider {
+    grid-column: 1 / -1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+
+  /* Distance info */
+  .info-bar {
+    display: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 24px;
+    margin-top: 20px;
+    display: flex;
+    gap: 40px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+  }
+  .info-bar.show { display: flex; animation: fadeIn 0.4s ease; }
+
+  .info-item { text-align: center; }
+  .info-item .k { font-size: 0.62rem; letter-spacing: 0.2em; color: var(--text-dim); text-transform: uppercase; }
+  .info-item .v { font-family: 'Orbitron', monospace; font-size: 1.1rem; color: var(--accent); text-shadow: var(--glow); margin-top: 2px; }
+
+  @media (max-width: 600px) {
+    .grid, .results.show { grid-template-columns: 1fr; }
+    .compass-wrap { gap: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>方位 &amp; 俯仰計算器</h1>
+    <div class="scan-line"></div>
+    <p>Bearing &amp; Elevation Angle Calculator</p>
+  </header>
+
+  <div class="grid">
+    <!-- Point A -->
+    <div class="panel point-a">
+      <div class="panel-label"><span class="dot"></span>點 A — 觀測起點</div>
+      <div class="field" style="margin-bottom:12px">
+        <label>座標（可直接貼上 Google 座標）</label>
+        <div class="coord-wrap">
+          <input type="text" id="a-coord" placeholder="25.0478, 121.5319" autocomplete="off" spellcheck="false" oninput="parseCoord('a')">
+          <span class="coord-status idle" id="a-coord-status">○</span>
+        </div>
+        <div class="coord-hint" id="a-coord-hint">緯度, 經度 — 支援逗號或空白分隔</div>
+      </div>
+      <div class="field-group">
+        <div class="field">
+          <label>海拔高度 (m)</label>
+          <div class="alt-wrap">
+            <input type="number" id="a-alt" placeholder="自動查詢" step="1">
+            <span class="alt-spin" id="a-alt-spin">↻</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>車頭方向 (°)</label>
+          <input type="number" id="a-head" placeholder="0" step="0.1" min="0" max="360">
+        </div>
+      </div>
+    </div>
+
+    <!-- Point B -->
+    <div class="panel point-b">
+      <div class="panel-label"><span class="dot"></span>點 B — 觀測終點</div>
+      <div class="field" style="margin-bottom:12px">
+        <label>座標（可直接貼上 Google 座標）</label>
+        <div class="coord-wrap">
+          <input type="text" id="b-coord" placeholder="25.0330, 121.5654" autocomplete="off" spellcheck="false" oninput="parseCoord('b')">
+          <span class="coord-status idle" id="b-coord-status">○</span>
+        </div>
+        <div class="coord-hint" id="b-coord-hint">緯度, 經度 — 支援逗號或空白分隔</div>
+      </div>
+      <div class="field-group">
+        <div class="field">
+          <label>海拔高度 (m)</label>
+          <div class="alt-wrap">
+            <input type="number" id="b-alt" placeholder="自動查詢" step="1">
+            <span class="alt-spin" id="b-alt-spin">↻</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>車頭方向 (°)</label>
+          <input type="number" id="b-head" placeholder="0" step="0.1" min="0" max="360">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calculate()"><span>▶ 計算方位與俯仰角</span></button>
+
+  <!-- Info bar -->
+  <div class="info-bar" id="info-bar">
+    <div class="info-item"><div class="k">水平距離</div><div class="v" id="dist-h">—</div></div>
+    <div class="info-item"><div class="k">直線距離</div><div class="v" id="dist-3d">—</div></div>
+    <div class="info-item"><div class="k">高度差 (B − A)</div><div class="v" id="alt-diff">—</div></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <!-- A looking at B -->
+    <div class="result-panel">
+      <div class="result-title">▸ 點 A 朝向 點 B</div>
+
+      <div class="result-row">
+        <div class="result-key">目標方位角（絕對北）</div>
+        <div class="result-val" id="a-bearing">—<span class="unit">°</span></div>
+        <div class="result-sub" id="a-bearing-dir">—</div>
+      </div>
+
+      <div class="result-row">
+        <div class="result-key">需從車頭旋轉（方位差）</div>
+        <div class="result-val" id="a-rot">—<span class="unit">°</span></div>
+        <div class="result-sub" id="a-rot-dir">—</div>
+      </div>
+
+      <div class="result-row">
+        <div class="result-key">俯仰角（需調整）</div>
+        <div class="result-val" id="a-elev">—<span class="unit">°</span></div>
+        <div class="result-sub" id="a-elev-dir">—</div>
+      </div>
+
+      <div class="compass-box" style="margin-top:20px">
+        <div class="compass-label">A 的羅盤示意</div>
+        <svg class="compass" id="compass-a" width="120" height="120" viewBox="-60 -60 120 120"></svg>
+      </div>
+    </div>
+
+    <!-- B looking at A -->
+    <div class="result-panel">
+      <div class="result-title">▸ 點 B 朝向 點 A</div>
+
+      <div class="result-row">
+        <div class="result-key">目標方位角（絕對北）</div>
+        <div class="result-val" id="b-bearing">—<span class="unit">°</span></div>
+        <div class="result-sub" id="b-bearing-dir">—</div>
+      </div>
+
+      <div class="result-row">
+        <div class="result-key">需從車頭旋轉（方位差）</div>
+        <div class="result-val" id="b-rot">—<span class="unit">°</span></div>
+        <div class="result-sub" id="b-rot-dir">—</div>
+      </div>
+
+      <div class="result-row">
+        <div class="result-key">俯仰角（需調整）</div>
+        <div class="result-val" id="b-elev">—<span class="unit">°</span></div>
+        <div class="result-sub" id="b-elev-dir">—</div>
+      </div>
+
+      <div class="compass-box" style="margin-top:20px">
+        <div class="compass-label">B 的羅盤示意</div>
+        <svg class="compass" id="compass-b" width="120" height="120" viewBox="-60 -60 120 120"></svg>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const DEG = Math.PI / 180;
+
+function toRad(d) { return d * DEG; }
+function toDeg(r) { return r / DEG; }
+
+// Haversine bearing A→B (degrees, 0-360)
+function bearing(lat1, lon1, lat2, lon2) {
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const Δλ = toRad(lon2 - lon1);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+// Haversine horizontal distance (metres)
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const Δφ = toRad(lat2 - lat1), Δλ = toRad(lon2 - lon1);
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Elevation angle from origin to target
+function elevAngle(horizDist, altDiff) {
+  if (horizDist === 0) return altDiff > 0 ? 90 : altDiff < 0 ? -90 : 0;
+  return toDeg(Math.atan2(altDiff, horizDist));
+}
+
+// Shortest rotation from heading to target bearing
+function deltaAngle(head, target) {
+  let d = ((target - head) + 360) % 360;
+  if (d > 180) d -= 360;
+  return d;
+}
+
+function fmt(n, dec=1) {
+  return (n >= 0 ? '+' : '') + n.toFixed(dec);
+}
+
+function bearingLabel(b) {
+  const dirs = ['北(N)','北北東','東北','東北東','東(E)','東南東','東南','南南東',
+                 '南(S)','南南西','西南','西南西','西(W)','西北西','西北','北北西'];
+  return dirs[Math.round(b / 22.5) % 16];
+}
+
+function fmtDist(m) {
+  if (m >= 1000) return (m/1000).toFixed(2) + ' km';
+  return m.toFixed(0) + ' m';
+}
+
+function drawCompass(svgId, headingDeg, targetDeg) {
+  const svg = document.getElementById(svgId);
+  const R = 50, r = 38;
+  const cardinals = ['N','E','S','W'];
+
+  let html = '';
+  // Outer ring
+  html += `<circle cx="0" cy="0" r="${R}" fill="none" stroke="#1a3a4a" stroke-width="1.5"/>`;
+  html += `<circle cx="0" cy="0" r="${r}" fill="none" stroke="#0d2530" stroke-width="8"/>`;
+
+  // Tick marks
+  for (let i = 0; i < 36; i++) {
+    const a = toRad(i * 10 - 90);
+    const len = i % 9 === 0 ? 8 : i % 3 === 0 ? 5 : 3;
+    const x1 = (R-1) * Math.cos(a), y1 = (R-1) * Math.sin(a);
+    const x2 = (R-1-len) * Math.cos(a), y2 = (R-1-len) * Math.sin(a);
+    html += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="#2a5a6a" stroke-width="1"/>`;
+  }
+
+  // Cardinal labels
+  cardinals.forEach((c, i) => {
+    const a = toRad(i * 90 - 90);
+    const tx = (R - 18) * Math.cos(a), ty = (R - 18) * Math.sin(a);
+    const col = c === 'N' ? '#00e5ff' : '#4a7a8a';
+    html += `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="8" font-family="Orbitron,monospace" fill="${col}" font-weight="700">${c}</text>`;
+  });
+
+  // Heading arrow (vehicle direction) – cyan
+  const ha = toRad(headingDeg - 90);
+  const hx = r * 0.85 * Math.cos(ha), hy = r * 0.85 * Math.sin(ha);
+  const hbx = r * 0.25 * Math.cos(ha + Math.PI), hby = r * 0.25 * Math.sin(ha + Math.PI);
+  html += `<line x1="${hbx.toFixed(2)}" y1="${hby.toFixed(2)}" x2="${hx.toFixed(2)}" y2="${hy.toFixed(2)}" stroke="#00e5ff" stroke-width="2" stroke-linecap="round"/>`;
+  html += `<polygon points="${arrow(ha, hx, hy, 6)}" fill="#00e5ff"/>`;
+
+  // Target bearing arrow – green
+  const ta = toRad(targetDeg - 90);
+  const tx2 = r * 0.85 * Math.cos(ta), ty2 = r * 0.85 * Math.sin(ta);
+  const tbx = r * 0.25 * Math.cos(ta + Math.PI), tby = r * 0.25 * Math.sin(ta + Math.PI);
+  html += `<line x1="${tbx.toFixed(2)}" y1="${tby.toFixed(2)}" x2="${tx2.toFixed(2)}" y2="${ty2.toFixed(2)}" stroke="#39ff14" stroke-width="2" stroke-linecap="round" stroke-dasharray="3,2"/>`;
+  html += `<polygon points="${arrow(ta, tx2, ty2, 6)}" fill="#39ff14"/>`;
+
+  // Centre dot
+  html += `<circle cx="0" cy="0" r="3" fill="#00e5ff" opacity="0.7"/>`;
+
+  // Legend
+  html += `<rect x="-50" y="54" width="10" height="3" fill="#00e5ff" rx="1"/>`;
+  html += `<text x="-36" y="57" font-size="6" font-family="Share Tech Mono,monospace" fill="#4a7a8a">車頭</text>`;
+  html += `<rect x="5" y="54" width="10" height="3" fill="#39ff14" rx="1"/>`;
+  html += `<text x="19" y="57" font-size="6" font-family="Share Tech Mono,monospace" fill="#4a7a8a">目標</text>`;
+
+  svg.innerHTML = html;
+}
+
+function arrow(angle, tipX, tipY, size) {
+  const left = angle + Math.PI * 0.85;
+  const right = angle - Math.PI * 0.85;
+  return `${tipX.toFixed(2)},${tipY.toFixed(2)} ${(tipX + size*Math.cos(left)).toFixed(2)},${(tipY + size*Math.sin(left)).toFixed(2)} ${(tipX + size*Math.cos(right)).toFixed(2)},${(tipY + size*Math.sin(right)).toFixed(2)}`;
+}
+
+// Convert DMS value to decimal degrees
+function dmsToDecimal(d, m, s) {
+  return d + m / 60 + s / 3600;
+}
+
+// Parse coordinate string → {lat, lon} or null
+// Supports:
+//   Decimal:  "25.0478, 121.5319"  "(24.2128274, 120.5990434)"
+//   DMS:      "北緯24°12′45″ 東經120°36′7″"
+//             "N 24°12'45\" E 120°36'7\""
+//             "24°12'45\"N 120°36'7\"E"
+function parseLatLon(str) {
+  if (!str) return null;
+
+  // --- Try DMS format first ---
+  // Normalize prime/double-prime symbols to ' and "
+  let s = str
+    .replace(/′|ʹ/g, "'")
+    .replace(/″|ʺ/g, '"');
+
+  // Match: optional prefix (北緯/南緯/東經/西經/N/S/E/W) + DDD°MM'SS"
+  const dmsRe = /(北緯|南緯|東經|西經|[NSEWnsew])?(\d{1,3})°\s*(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)"/g;
+  const matches = [...s.matchAll(dmsRe)];
+
+  if (matches.length >= 2) {
+    const parse = (m) => {
+      const prefix = m[1] || '';
+      const val = dmsToDecimal(parseFloat(m[2]), parseFloat(m[3]), parseFloat(m[4]));
+      const isSouth = /南|S/i.test(prefix);
+      const isWest  = /西|W/i.test(prefix);
+      const isLat   = /北|南|N|S/i.test(prefix);
+      const isLon   = /東|西|E|W/i.test(prefix);
+      return { val: isSouth || isWest ? -val : val, isLat, isLon };
+    };
+
+    const first  = parse(matches[0]);
+    const second = parse(matches[1]);
+
+    let lat, lon;
+    if (first.isLat && second.isLon) {
+      lat = first.val;  lon = second.val;
+    } else if (first.isLon && second.isLat) {
+      lat = second.val; lon = first.val;
+    } else {
+      // No direction markers — assume first=lat, second=lon
+      lat = first.val;  lon = second.val;
+    }
+
+    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180)
+      return { lat, lon };
+  }
+
+  // --- Fallback: decimal degrees ---
+  s = str.replace(/[()[\]'"]/g, '');
+  const parts = s.trim().split(/[\s,，]+/).filter(Boolean);
+  if (parts.length < 2) return null;
+  const lat = parseFloat(parts[0]);
+  const lon = parseFloat(parts[1]);
+  if (isNaN(lat) || isNaN(lon)) return null;
+  if (lat < -90 || lat > 90) return null;
+  if (lon < -180 || lon > 180) return null;
+  return { lat, lon };
+}
+
+// Debounce timers for elevation fetch
+const elevTimers = {};
+
+async function fetchElevation(id, lat, lon) {
+  const spin  = document.getElementById(id + '-alt-spin');
+  const input = document.getElementById(id + '-alt');
+  const hint  = document.getElementById(id + '-coord-hint');
+
+  spin.textContent = '↻';
+  spin.className = 'alt-spin loading';
+
+  const baseHint = `緯度 ${lat.toFixed(6)}°  經度 ${lon.toFixed(6)}°`;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+    const res = await fetch(
+      `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`,
+      { method: 'GET', mode: 'cors', signal: controller.signal }
+    );
+    clearTimeout(timer);
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const elev = Array.isArray(data.elevation) ? data.elevation[0] : data.elevation;
+
+    if (elev !== undefined && elev !== null && !isNaN(Number(elev))) {
+      input.value = Math.round(Number(elev));
+      spin.textContent = '✓';
+      spin.className = 'alt-spin done';
+      hint.textContent = baseHint + `  高度 ${Math.round(Number(elev))} m`;
+      hint.className = 'coord-hint ok';
+      setTimeout(() => { spin.className = 'alt-spin'; }, 2500);
+    } else {
+      throw new Error('empty elevation');
+    }
+  } catch (e) {
+    spin.className = 'alt-spin';
+    hint.textContent = baseHint + '  （高度請手動輸入）';
+    hint.className = 'coord-hint';
+    if (e.name === 'AbortError') {
+      console.warn('Elevation fetch timed out');
+    } else if (location.protocol === 'file:') {
+      console.info('file:// 開啟時無法呼叫外部 API，請上傳至 GitHub Pages 後使用');
+    } else {
+      console.warn('Elevation fetch failed:', e.message);
+    }
+  }
+}
+
+// Live feedback as user types / pastes
+function parseCoord(id) {
+  const input = document.getElementById(id + '-coord');
+  const status = document.getElementById(id + '-coord-status');
+  const hint = document.getElementById(id + '-coord-hint');
+  const val = input.value.trim();
+
+  if (!val) {
+    status.textContent = '○'; status.className = 'coord-status idle';
+    hint.textContent = '緯度, 經度 — 支援逗號或空白分隔';
+    hint.className = 'coord-hint'; return;
+  }
+
+  const result = parseLatLon(val);
+  if (result) {
+    status.textContent = '✓'; status.className = 'coord-status ok';
+    hint.textContent = `緯度 ${result.lat.toFixed(6)}°  經度 ${result.lon.toFixed(6)}°`;
+    hint.className = 'coord-hint ok';
+    // Auto-fetch elevation (debounce 600ms to avoid firing mid-paste)
+    clearTimeout(elevTimers[id]);
+    elevTimers[id] = setTimeout(() => fetchElevation(id, result.lat, result.lon), 600);
+  } else {
+    status.textContent = '✗'; status.className = 'coord-status err';
+    hint.textContent = '格式錯誤，請貼上如「25.0478, 121.5319」的座標';
+    hint.className = 'coord-hint err';
+  }
+}
+
+function calculate() {
+  const aCoord = parseLatLon(document.getElementById('a-coord').value);
+  const bCoord = parseLatLon(document.getElementById('b-coord').value);
+
+  if (!aCoord) { alert('點 A 座標格式有誤，請確認後重試'); return; }
+  if (!bCoord) { alert('點 B 座標格式有誤，請確認後重試'); return; }
+
+  const aLat = aCoord.lat, aLon = aCoord.lon;
+  const bLat = bCoord.lat, bLon = bCoord.lon;
+  const aAlt = parseFloat(document.getElementById('a-alt').value) || 0;
+  const aHead = parseFloat(document.getElementById('a-head').value) || 0;
+  const bAlt = parseFloat(document.getElementById('b-alt').value) || 0;
+  const bHead = parseFloat(document.getElementById('b-head').value) || 0;
+
+  const horizDist = haversine(aLat, aLon, bLat, bLon);
+  const dist3d = Math.sqrt(horizDist**2 + (bAlt - aAlt)**2);
+  const altDiff = bAlt - aAlt;
+
+  // A → B
+  const bearAB = bearing(aLat, aLon, bLat, bLon);
+  const rotA = deltaAngle(aHead, bearAB);
+  const elevA = elevAngle(horizDist, altDiff);
+
+  // B → A
+  const bearBA = bearing(bLat, bLon, aLat, aLon);
+  const rotB = deltaAngle(bHead, bearBA);
+  const elevB = elevAngle(horizDist, -altDiff);
+
+  // Fill results
+  document.getElementById('a-bearing').innerHTML = bearAB.toFixed(1) + '<span class="unit">°</span>';
+  document.getElementById('a-bearing-dir').textContent = bearingLabel(bearAB);
+  document.getElementById('a-rot').innerHTML = fmt(rotA) + '<span class="unit">°</span>';
+  document.getElementById('a-rot-dir').textContent = rotA >= 0 ? '↻ 向右旋轉 ' + Math.abs(rotA).toFixed(1) + '°' : '↺ 向左旋轉 ' + Math.abs(rotA).toFixed(1) + '°';
+  document.getElementById('a-elev').innerHTML = fmt(elevA) + '<span class="unit">°</span>';
+  document.getElementById('a-elev-dir').textContent = elevA > 0.05 ? '▲ 仰角，需向上抬 ' + elevA.toFixed(2) + '°' : elevA < -0.05 ? '▼ 俯角，需向下壓 ' + Math.abs(elevA).toFixed(2) + '°' : '→ 水平，無需俯仰';
+
+  document.getElementById('b-bearing').innerHTML = bearBA.toFixed(1) + '<span class="unit">°</span>';
+  document.getElementById('b-bearing-dir').textContent = bearingLabel(bearBA);
+  document.getElementById('b-rot').innerHTML = fmt(rotB) + '<span class="unit">°</span>';
+  document.getElementById('b-rot-dir').textContent = rotB >= 0 ? '↻ 向右旋轉 ' + Math.abs(rotB).toFixed(1) + '°' : '↺ 向左旋轉 ' + Math.abs(rotB).toFixed(1) + '°';
+  document.getElementById('b-elev').innerHTML = fmt(elevB) + '<span class="unit">°</span>';
+  document.getElementById('b-elev-dir').textContent = elevB > 0.05 ? '▲ 仰角，需向上抬 ' + elevB.toFixed(2) + '°' : elevB < -0.05 ? '▼ 俯角，需向下壓 ' + Math.abs(elevB).toFixed(2) + '°' : '→ 水平，無需俯仰';
+
+  document.getElementById('dist-h').textContent = fmtDist(horizDist);
+  document.getElementById('dist-3d').textContent = fmtDist(dist3d);
+  document.getElementById('alt-diff').textContent = fmt(altDiff, 0) + ' m';
+
+  document.getElementById('results').className = 'results show';
+  document.getElementById('info-bar').className = 'info-bar show';
+
+  // Draw compasses
+  drawCompass('compass-a', aHead, bearAB);
+  drawCompass('compass-b', bHead, bearBA);
+
+  // Scroll to results
+  setTimeout(() => document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+// Allow Enter key
+document.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+
+// Warn if opened via file:// (API calls will be blocked)
+if (location.protocol === 'file:') {
+  ['a','b'].forEach(id => {
+    const hint = document.getElementById(id + '-coord-hint');
+    if (hint) {
+      hint.textContent = '請上傳至 GitHub Pages 後，高度才能自動查詢';
+      hint.className = 'coord-hint';
+    }
+  });
+}
+</script>
+</body>
+</html>

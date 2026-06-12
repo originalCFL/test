@@ -1,0 +1,27 @@
+{
+  "name": "方位 & 俯仰計算器",
+  "short_name": "方位計算器",
+  "description": "Azimuth & Elevation Angle Calculator — 雙向方位角、俯仰角、旋轉量計算工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#070d0f",
+  "theme_color": "#00e5ff",
+  "orientation": "any",
+  "lang": "zh-TW",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "navigation"],
+  "screenshots": []
+}

@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="方位計算器">
+<meta name="theme-color" content="#00e5ff">
+<meta name="description" content="雙向方位角、俯仰角、旋轉量計算工具，支援離線使用">
+<link rel="manifest" href="manifest.json">
 <title>方位俯仰計算器</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
@@ -406,38 +414,31 @@
 
   /* feedback section */
   .feedback-block {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 16px 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
+    padding: 4px 0;
   }
   .feedback-text {
     font-size: 0.78rem;
-    color: var(--text-dim);
-    line-height: 1.5;
+    color: var(--text);
+    line-height: 1.8;
   }
-  .feedback-text span { color: var(--text); }
   .btn-feedback {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
+    gap: 4px;
+    padding: 4px 12px;
     background: transparent;
     border: 1px solid var(--accent3);
     color: var(--accent3);
     font-family: 'Share Tech Mono', monospace;
-    font-size: 0.75rem;
-    letter-spacing: 0.12em;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
     text-decoration: none;
     border-radius: 3px;
     transition: all 0.2s;
     white-space: nowrap;
     cursor: pointer;
+    vertical-align: middle;
+    margin-left: 4px;
   }
   .btn-feedback:hover {
     background: var(--accent3);
@@ -899,10 +900,91 @@
   @media (max-width: 400px) {
     .results.show { grid-template-columns: 1fr; }
   }
+
+  /* ── PWA 離線狀態列 ── */
+  .offline-bar {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 300;
+    background: #1a0a00;
+    border-bottom: 1px solid #ff6b35;
+    color: #ff9a5c;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-align: center;
+    padding: 7px 16px;
+    transition: all 0.3s;
+  }
+  .offline-bar.show { display: block; }
+  .offline-bar.online {
+    background: #001a0a;
+    border-color: var(--accent3);
+    color: var(--accent3);
+  }
+
+  /* ── 安裝提示橫幅 ── */
+  .install-bar {
+    display: none;
+    margin-bottom: 20px;
+    padding: 12px 20px;
+    background: rgba(0,229,255,0.05);
+    border: 1px solid rgba(0,229,255,0.25);
+    border-radius: 4px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .install-bar.show { display: flex; animation: fadeIn 0.4s ease; }
+  .install-bar-text {
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .install-bar-text strong { color: var(--accent); font-weight: normal; }
+  .btn-install {
+    flex-shrink: 0;
+    padding: 6px 16px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-install:hover { background: var(--accent); color: var(--bg); }
+  .btn-install-close {
+    background: none; border: none;
+    color: var(--text-dim); font-size: 1rem;
+    cursor: pointer; padding: 0 4px;
+    transition: color 0.2s;
+    flex-shrink: 0;
+  }
+  .btn-install-close:hover { color: var(--text); }
 </style>
 </head>
 <body>
+<!-- PWA 離線狀態列 -->
+<div class="offline-bar" id="offline-bar">
+  ◉ 目前離線 — 計算功能正常，海拔高度請手動輸入
+</div>
+
 <div class="container">
+
+  <!-- PWA 安裝提示 -->
+  <div class="install-bar" id="install-bar">
+    <div class="install-bar-text">
+      <strong>加入主畫面</strong>，隨時在無網路環境使用（山區、野外也 OK）
+    </div>
+    <button class="btn-install" id="btn-install" onclick="triggerInstall()">⬇ 安裝 App</button>
+    <button class="btn-install-close" onclick="dismissInstall()" aria-label="關閉">✕</button>
+  </div>
 
   <header>
     <h1>方位 &amp; 俯仰計算器</h1>
@@ -1031,7 +1113,7 @@
     <div class="footer-license">
       <div class="footer-title">MIT License</div>
       <div class="footer-text">
-        Copyright © <span id="footer-year"></span> <a href="https://www.instagram.com/fuuuuu_liu" target="_blank" rel="noopener">fuuuuu_liu</a>
+        Copyright © <span id="footer-year"></span> fuuuuu_liu
       </div>
       <div class="footer-text" style="margin-top:6px;font-size:0.62rem;color:#2a4a5a">
         Permission is hereby granted, free of charge, to any person obtaining a copy of this software to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the above copyright notice being included in all copies or substantial portions of the software.
@@ -1055,7 +1137,7 @@
         <div class="en-title">Azimuth &amp; Elevation Angle Calculator</div>
 
         <p class="readme-desc">
-          一款計算方位及俯仰的實用小工具，輸入兩點座標後，即時計算雙向方位角、俯仰角與旋轉量，並以動態羅盤圖示視覺化呈現。
+          一款計算方位及俯仰的小工具，輸入兩點座標後，即時計算雙向方位角、俯仰角與旋轉量，並以動態羅盤圖示視覺化呈現。
         </p>
 
         <div class="readme-hr"></div>
@@ -1073,6 +1155,11 @@
             </thead>
             <tbody>
               <tr>
+                <td>v4.0</td>
+                <td>2026-06-12</td>
+                <td>PWA 離線支援 — 可安裝至主畫面，無網路環境仍可完整計算</td>
+              </tr>
+              <tr>
                 <td>v3.0</td>
                 <td>2026-06-11</td>
                 <td>版面視覺更新、自動填入海拔高度、新增分享結果功能</td>
@@ -1080,9 +1167,9 @@
             </tbody>
           </table>
           <div class="v3-notes">
-            <div class="v3-note"><strong>版面視覺</strong> — 更容易瀏覽，顏色不易混淆</div>
-            <div class="v3-note"><strong>自動填入高度</strong> — 貼上座標後自動填入海拔高度，也可以手動輸入</div>
-            <div class="v3-note"><strong>分享結果</strong> — 計算後可複製或分享到其他 App</div>
+            <div class="v3-note"><strong>離線計算</strong> — 所有方位角、俯仰角計算在無網路下均可正常運作</div>
+            <div class="v3-note"><strong>安裝 App</strong> — 可加入手機主畫面，像原生 App 一樣開啟使用</div>
+            <div class="v3-note"><strong>海拔高度</strong> — 有網路時自動查詢；離線時顯示提示，請手動輸入</div>
           </div>
         </div>
 
@@ -1091,8 +1178,8 @@
         <div class="section-title">功能特色</div>
         <ul class="feature-list">
           <li><strong>雙向計算</strong> — 同時輸出「A 朝向 B」與「B 朝向 A」的完整數據</li>
-          <li><strong>方位角（Bearing）</strong> — 絕對北方位角（0°–360°）</li>
-          <li><strong>俯仰角（Elevation Angle）</strong> — 考慮海拔高度差的仰角／俯角，若不想算俯仰角，高度也可以直接輸入 0</li>
+          <li><strong>方位角（Azimuth）</strong> — 絕對北方位角（0°–360°）</li>
+          <li><strong>俯仰角（Elevation）</strong> — 考慮海拔高度差的俯仰角，若不想計算可直接輸入0</li>
           <li><strong>車頭旋轉量</strong> — 從當前車頭方向到目標方位需旋轉的角度（含左右方向提示）</li>
           <li><strong>距離資訊</strong> — 水平距離、三維直線距離、高度差</li>
           <li><strong>羅盤視覺化</strong> — 動態羅盤，車頭方向與目標方位一目瞭然</li>
@@ -1110,17 +1197,7 @@
 
         <div class="section-title">使用反饋</div>
         <div class="feedback-block">
-          <div class="feedback-text"><span>有任何問題或建議</span>，歡迎填寫反饋表單</div>
-          <a class="btn-feedback" href="https://forms.gle/9p1aGw4byF25ghh39" target="_blank" rel="noopener">
-            ✦ 填寫反饋
-          </a>
-        </div>
-
-        <div class="readme-hr"></div>
-
-        <div class="readme-meta">
-          <div class="readme-meta-item">作者 &nbsp;<span>fuuuuu_liu</span></div>
-          <div class="readme-meta-item">授權 &nbsp;<span>MIT License</span></div>
+          <span class="feedback-text">有任何問題或建議，歡迎填寫反饋表單&nbsp;<a class="btn-feedback" href="https://forms.gle/9p1aGw4byF25ghh39" target="_blank" rel="noopener">✦ 填寫反饋</a></span>
         </div>
 
       </div>
@@ -1300,12 +1377,19 @@ async function fetchElevation(id, lat, lon) {
     clearTimeout(timer);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
+    // 檢查 Service Worker 離線標記
+    if (data._offline === true) {
+      throw new Error('offline');
+    }
     const elev = Array.isArray(data.elevation) ? data.elevation[0] : data.elevation;
     if (elev !== undefined && elev !== null && !isNaN(Number(elev))) {
       input.value = Math.round(Number(elev));
       spin.textContent = '✓';
       spin.className = 'alt-spin done';
-      hint.textContent = baseHint + `  高度 ${Math.round(Number(elev))} m`;
+      // 若是快取來的，加上標記
+      const fromCache = res.headers.get('X-SW-Offline') === 'true' ? '' :
+                        (res.headers.get('X-SW-Cache') ? ' (快取)' : '');
+      hint.textContent = baseHint + `  高度 ${Math.round(Number(elev))} m${fromCache}`;
       hint.className = 'coord-hint ok';
       setTimeout(() => { spin.className = 'alt-spin'; }, 2500);
     } else {
@@ -1313,15 +1397,18 @@ async function fetchElevation(id, lat, lon) {
     }
   } catch (e) {
     spin.className = 'alt-spin';
-    hint.textContent = baseHint + '  （高度請手動輸入）';
-    hint.className = 'coord-hint';
-    if (e.name === 'AbortError') {
+    if (e.message === 'offline' || !navigator.onLine) {
+      hint.textContent = baseHint + '  （離線中，請手動輸入高度）';
+    } else if (e.name === 'AbortError') {
+      hint.textContent = baseHint + '  （查詢逾時，請手動輸入）';
       console.warn('Elevation fetch timed out');
     } else if (location.protocol === 'file:') {
-      console.info('file:// 開啟時無法呼叫外部 API，請上傳至 GitHub Pages 後使用');
+      hint.textContent = baseHint + '  （本機開啟，請手動輸入高度）';
     } else {
+      hint.textContent = baseHint + '  （高度請手動輸入）';
       console.warn('Elevation fetch failed:', e.message);
     }
+    hint.className = 'coord-hint';
   }
 }
 
@@ -1372,15 +1459,15 @@ function calculate() {
   document.getElementById('a-bearing').innerHTML = bearAB.toFixed(1) + '<span class="unit">°</span>';
   document.getElementById('a-bearing-dir').textContent = bearingLabel(bearAB);
   document.getElementById('a-rot').innerHTML = fmt(rotA) + '<span class="unit">°</span>';
-  document.getElementById('a-rot-dir').textContent = rotA >= 0 ? '↻ 向右旋轉 ' + Math.abs(rotA).toFixed(1) + '°' : '↺ 向左旋轉 ' + Math.abs(rotA).toFixed(1) + '°';
+  document.getElementById('a-rot-dir').textContent = rotA >= 0 ? '↻ 需向右旋轉 ' + Math.abs(rotA).toFixed(1) + '°' : '↺ 需向左旋轉 ' + Math.abs(rotA).toFixed(1) + '°';
   document.getElementById('a-elev').innerHTML = fmt(elevA) + '<span class="unit">°</span>';
-  document.getElementById('a-elev-dir').textContent = elevA > 0.05 ? '▲ 仰角，需向上抬 ' + elevA.toFixed(2) + '°' : elevA < -0.05 ? '▼ 俯角，需向下壓 ' + Math.abs(elevA).toFixed(2) + '°' : '→ 水平，無需俯仰';
+  document.getElementById('a-elev-dir').textContent = elevA > 0.05 ? '▲ 仰角需向上升 ' + elevA.toFixed(2) + '°' : elevA < -0.05 ? '▼ 俯角需向下降 ' + Math.abs(elevA).toFixed(2) + '°' : '→ 水平，無需俯仰';
   document.getElementById('b-bearing').innerHTML = bearBA.toFixed(1) + '<span class="unit">°</span>';
   document.getElementById('b-bearing-dir').textContent = bearingLabel(bearBA);
   document.getElementById('b-rot').innerHTML = fmt(rotB) + '<span class="unit">°</span>';
-  document.getElementById('b-rot-dir').textContent = rotB >= 0 ? '↻ 向右旋轉 ' + Math.abs(rotB).toFixed(1) + '°' : '↺ 向左旋轉 ' + Math.abs(rotB).toFixed(1) + '°';
+  document.getElementById('b-rot-dir').textContent = rotB >= 0 ? '↻ 需向右旋轉 ' + Math.abs(rotB).toFixed(1) + '°' : '↺ 需向左旋轉 ' + Math.abs(rotB).toFixed(1) + '°';
   document.getElementById('b-elev').innerHTML = fmt(elevB) + '<span class="unit">°</span>';
-  document.getElementById('b-elev-dir').textContent = elevB > 0.05 ? '▲ 仰角，需向上抬 ' + elevB.toFixed(2) + '°' : elevB < -0.05 ? '▼ 俯角，需向下壓 ' + Math.abs(elevB).toFixed(2) + '°' : '→ 水平，無需俯仰';
+  document.getElementById('b-elev-dir').textContent = elevB > 0.05 ? '▲ 仰角需向上升 ' + elevB.toFixed(2) + '°' : elevB < -0.05 ? '▼ 俯角需向下降 ' + Math.abs(elevB).toFixed(2) + '°' : '→ 水平，無需俯仰';
   document.getElementById('dist-h').textContent = fmtDist(horizDist);
   document.getElementById('dist-3d').textContent = fmtDist(dist3d);
   document.getElementById('alt-diff').textContent = Math.abs(altDiff).toFixed(0) + ' m';
@@ -1393,29 +1480,51 @@ function calculate() {
 }
 
 function buildShareText() {
-  const aRot  = document.getElementById('a-rot-dir').textContent;
-  const aElev = document.getElementById('a-elev-dir').textContent;
   const aBear = document.getElementById('a-bearing').textContent + ' ' + document.getElementById('a-bearing-dir').textContent;
-  const bRot  = document.getElementById('b-rot-dir').textContent;
-  const bElev = document.getElementById('b-elev-dir').textContent;
   const bBear = document.getElementById('b-bearing').textContent + ' ' + document.getElementById('b-bearing-dir').textContent;
   const distH = document.getElementById('dist-h').textContent;
   const distD = document.getElementById('dist-3d').textContent;
   const altD  = document.getElementById('alt-diff').textContent;
+
+  // "↻ 需向右旋轉 160.6°" → "需向右轉 160.6° ↻"
+  function fmtRot(raw) {
+    const m = raw.match(/([↻↺])\s*需向([左右])旋轉\s*(\S+)/);
+    if (m) return `需向${m[2]}轉 ${m[3]} ${m[1]}`;
+    return raw;
+  }
+
+  // "▲ 仰角需向上升 1.60°" → "需向上升 1.60° ▲"
+  // "▼ 俯角需向下降 1.60°" → "需向下降 1.60° ▼"
+  // "→ 水平，無需俯仰"      → "水平無需俯仰"
+  function fmtElev(raw) {
+    const m = raw.match(/([▲▼])\s*(?:仰角|俯角)?需向([上下])[升降]\s*(\S+)/);
+    if (m) {
+      const dir = m[2] === '上' ? '上升' : '下降';
+      return `需向${dir} ${m[3]} ${m[1]}`;
+    }
+    return '水平無需俯仰';
+  }
+
+  const aRot  = fmtRot(document.getElementById('a-rot-dir').textContent);
+  const aElev = fmtElev(document.getElementById('a-elev-dir').textContent);
+  const bRot  = fmtRot(document.getElementById('b-rot-dir').textContent);
+  const bElev = fmtElev(document.getElementById('b-elev-dir').textContent);
+
   return [
     '📡 方位俯仰計算結果',
     '─────────────────',
     '【點 A → 點 B】',
-    `  方位角：${aBear}`,
-    `  旋轉：${aRot}`,
-    `  俯仰：${aElev}`,
-    '',
+    `目標方位角：${aBear}`,
+    `方位：${aRot}`,
+    `俯仰：${aElev}`,
     '【點 B → 點 A】',
-    `  方位角：${bBear}`,
-    `  旋轉：${bRot}`,
-    `  俯仰：${bElev}`,
-    '',
-    `水平距離：${distH}  直線距離：${distD}  高度差：${altD}`,
+    `目標方位角：${bBear}`,
+    `方位：${bRot}`,
+    `俯仰：${bElev}`,
+    '─────────────────',
+    `水平距離：${distH}`,
+    `直線距離：${distD}`,
+    `高度差：${altD}`,
     '─────────────────',
     '工具：Azimuth & Elevation Angle Calculator'
   ].join('\n');
@@ -1484,14 +1593,107 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// file:// warning
+// ── PWA: Service Worker 註冊 ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.info('[PWA] SW registered, scope:', reg.scope))
+      .catch(err => console.warn('[PWA] SW registration failed:', err));
+  });
+}
+
+// ── PWA: 離線/上線狀態偵測 ──
+const offlineBar = document.getElementById('offline-bar');
+let onlineToast = null;
+
+function updateOnlineStatus() {
+  if (navigator.onLine) {
+    if (offlineBar.classList.contains('show')) {
+      // 剛恢復上線：顯示短暫通知再隱藏
+      offlineBar.textContent = '◉ 已恢復連線';
+      offlineBar.classList.add('online');
+      offlineBar.classList.add('show');
+      // 同時重試高度查詢（若欄位已有座標）
+      ['a','b'].forEach(id => {
+        const coordInput = document.getElementById(id + '-coord');
+        if (coordInput && coordInput.value.trim()) {
+          const result = parseLatLon(coordInput.value.trim());
+          if (result) fetchElevation(id, result.lat, result.lon);
+        }
+      });
+      clearTimeout(onlineToast);
+      onlineToast = setTimeout(() => {
+        offlineBar.classList.remove('show');
+        offlineBar.classList.remove('online');
+      }, 2500);
+    }
+    // 調整 placeholder 提示
+    ['a','b'].forEach(id => {
+      const altInput = document.getElementById(id + '-alt');
+      if (altInput && !altInput.value) altInput.placeholder = '自動查詢';
+    });
+  } else {
+    clearTimeout(onlineToast);
+    offlineBar.textContent = '◉ 目前離線 — 計算功能正常，海拔高度請手動輸入';
+    offlineBar.classList.remove('online');
+    offlineBar.classList.add('show');
+    // 離線時調整 placeholder
+    ['a','b'].forEach(id => {
+      const altInput = document.getElementById(id + '-alt');
+      if (altInput && !altInput.value) altInput.placeholder = '請手動輸入';
+    });
+  }
+}
+
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+// 頁面載入時立即檢查
+if (!navigator.onLine) updateOnlineStatus();
+
+// ── PWA: 安裝提示 ──
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // 若尚未安裝且用戶未關閉過提示，才顯示
+  if (!localStorage.getItem('pwa-install-dismissed')) {
+    document.getElementById('install-bar').classList.add('show');
+  }
+});
+
+function triggerInstall() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(choice => {
+    if (choice.outcome === 'accepted') {
+      document.getElementById('install-bar').classList.remove('show');
+    }
+    deferredInstallPrompt = null;
+  });
+}
+
+function dismissInstall() {
+  document.getElementById('install-bar').classList.remove('show');
+  localStorage.setItem('pwa-install-dismissed', '1');
+}
+
+// 已安裝後自動隱藏提示列
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-bar').classList.remove('show');
+  console.info('[PWA] App installed');
+});
+
+// ── file:// 本機提示（保留相容性）──
 if (location.protocol === 'file:') {
   ['a','b'].forEach(id => {
     const hint = document.getElementById(id + '-coord-hint');
     if (hint) {
-      hint.textContent = '請上傳至 GitHub Pages 後，高度才能自動查詢';
+      hint.textContent = '請部署至 GitHub Pages，高度才能自動查詢（計算功能正常）';
       hint.className = 'coord-hint';
     }
+    const altInput = document.getElementById(id + '-alt');
+    if (altInput) altInput.placeholder = '請手動輸入';
   });
 }
 </script>
